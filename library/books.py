@@ -9,15 +9,15 @@ from flask import (
 
 bp = Blueprint('books', __name__, url_prefix='/books')
 
-@bp.route('/', methods=['POST'])
+@bp.route('/', methods=['GET'])
 def index():
     mongodb_client = PyMongo(current_app, uri="mongodb://localhost:27017/library")
     db = mongodb_client.db
 
-    name = request.form.get('name')
-    from_rent = request.form.get('from_rent')
-    to_rent = request.form.get('to_rent')
-    category = request.form.get('category')
+    name = request.args.get('name')
+    from_rent = request.args.get('from_rent')
+    to_rent = request.args.get('to_rent')
+    category = request.args.get('category')
 
     if name is not None:
         if category is not None:
