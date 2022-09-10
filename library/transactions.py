@@ -17,7 +17,7 @@ def index():
     db = mongodb_client.db
 
     if request.method == 'POST':
-        book_name = request.form.get('book_name')
+        book_name = request.form.get('book')
         person_name = request.form.get('person')
         issue_date = request.form.get('issue_date')
         return_date = request.form.get('return_date')
@@ -26,7 +26,7 @@ def index():
         book_rent = db.books.find_one({"name": {"$regex" : "(?i)" + book_name}}, {"rent_per_day": 1})
 
 
-        if issue_date is not None:
+        if issue_date is not None and return_date is None:
             db.transactions.insert_one({
                 "book_id": book_id["_id"],
                 "person": person_name,
@@ -37,19 +37,29 @@ def index():
                 "message": "Book issued successfully"
             })
 
-        else:
-            db.transactions.insert_one({
+        elif issue_date is None and return_date is not None:
+            db.transactions.update_one({
                 "book_id": book_id["_id"],
-                "person": person_name,
-                "return_date" : datetime.fromisoformat(return_date[:-1])
+                "person": {'$regex': '(?i)' + person_name},
+                'issue_date': {'$type': 9},
+                "return_date" : {'$exists': False}
+            },
+            {
+                '$set': {
+                    "return_date": datetime.fromisoformat(return_date[:-1])
+                }
             })
 
             issue_date = db.transactions.find_one({"book_id": book_id["_id"]}, {"issue_date": 1})
             rent = book_rent["rent_per_day"] * (datetime.fromisoformat(return_date[:-1]) - issue_date['issue_date']).days
-
+            
             return jsonify({
                 "message": "Book returned successfully",
                 "rent": rent
+            })
+        else:
+            return jsonify({
+                "message": "Please provide either issue date or return date"
             })
 
     elif request.method == 'GET':
@@ -59,8 +69,23 @@ def index():
         to_date = request.args.get('to')
 
         if book_name is not None:
-            book_id = db.books.find_one({"name": {"$regex" : "(?i)" + book_name}}, {"_id": 1})
-            transactions = db.transactions.find({"book_id": book_id["_id"]}, {"_id": 0})
+            book = db.books.find_one({"name": {"$regex" : "(?i)" + book_name}})
+            transactions = db.transactions.find({"book_id": book['_id'], "issue_date": {"$type": 9}}, {"_id": 0})
+            transactions_active = db.transactions.find({"book_id": book['_id'], "issue_date": {"$type": 9}, 'return_date': {'$exists': False}}, {"_id": 0})
+            transactions_completed = db.transactions.find({"book_id": book['_id'], "issue_date": {"$type": 9}, 'return_date': {'$type': 9}}, {"_id": 0})
+
+            print(transactions_active)
+
+            renters = [transaction['person'] for transaction in transactions]
+            active_renters = [transaction['person'] for transaction in transactions_active]
+            print(active_renters)
+
+            total_collected = 0
+            for transaction in transactions_completed:
+                total_collected += (transaction['return_date'] - transaction['issue_date']).days * book['rent_per_day']
+
+            return jsonify(renters=renters, renterCount=len(renters), activeRenters=active_renters, activeRenterCount=len(active_renters), totalRentCollected=total_collected)
+
         elif person_name is not None:
             books = db.transactions.find({
                 "person": {
@@ -77,7 +102,7 @@ def index():
                 }
             }, 
             {"_id": 0})
-        else:
+        elif from_date is not None and to_date is not None:
             transactions = db.transactions.aggregate([
                 {'$match': {
                     "issue_date": { 
@@ -99,7 +124,16 @@ def index():
                 {'$project': {
                     '_id' : 0,
                     'book_id' : 0
-                }}
+                }},
+                {
+                    '$unwind': {
+                        'path': '$book'                        
+                    }
+                }
             ])
+        else:
+            return jsonify({
+                "message": "Please provide either book name or person name or date range"
+            })
         
         return json.loads(json_util.dumps(transactions))
