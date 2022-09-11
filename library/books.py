@@ -1,19 +1,20 @@
 import json
-import functools
+import os
 from bson import json_util
 
-from flask_pymongo import PyMongo
+import pymongo
+# from flask_pymongo import PyMongo
 from flask import (
-    Blueprint, request, current_app, jsonify
+    Blueprint, request, jsonify
 )
 
 bp = Blueprint('books', __name__, url_prefix='/books')
 
+mongodb_client = pymongo.MongoClient(f"mongodb+srv://satyamrs00:{os.environ.get('DB_PASSWORD')}@scouto-library.cgqh2we.mongodb.net/?retryWrites=true&w=majority")
+db = mongodb_client.library
+
 @bp.route('/', methods=['GET'])
 def index():
-    mongodb_client = PyMongo(current_app, uri="mongodb://localhost:27017/library")
-    db = mongodb_client.db
-
     name = request.args.get('name')
     from_rent = request.args.get('from_rent')
     to_rent = request.args.get('to_rent')

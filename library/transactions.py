@@ -1,21 +1,22 @@
 import json
-import functools
+import os
 from bson import json_util
 from datetime import datetime
 from dateutil import parser
 
-from flask_pymongo import PyMongo
+import pymongo
+# from flask_pymongo import PyMongo
 from flask import (
-    Blueprint, request, current_app, jsonify
+    Blueprint, request, jsonify
 )
 
 bp = Blueprint('transactions', __name__, url_prefix='/transactions')
 
+mongodb_client = pymongo.MongoClient(f"mongodb+srv://satyamrs00:{os.environ.get('DB_PASSWORD')}@scouto-library.cgqh2we.mongodb.net/?retryWrites=true&w=majority")
+db = mongodb_client.library
+
 @bp.route('/', methods=['POST', 'GET'])
 def index():
-    mongodb_client = PyMongo(current_app, uri="mongodb://localhost:27017/library")
-    db = mongodb_client.db
-
     if request.method == 'POST':
         book_name = request.form.get('book')
         person_name = request.form.get('person')
