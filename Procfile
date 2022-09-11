@@ -1,1 +1,1 @@
-web: gunicorn library:app
+web: gunicorn "library:create_app()"
