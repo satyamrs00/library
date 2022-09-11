@@ -121,7 +121,9 @@ def index():
                 },
                 {'$project': {
                     '_id' : 0,
-                    'book_id' : 0
+                    'book_id' : 0,
+                    'issue_date' : 0,
+                    'return_date' : 0
                 }},
                 {
                     '$unwind': {
