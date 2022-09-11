@@ -21,8 +21,6 @@ def index():
 
     if name is not None:
         if category is not None and from_rent is not None and to_rent is not None:
-            print(name, category)
-            print("\n\n\n\n\\n\\n\n\\n\n\n\nhere")
             books = db.books.find({
                 "name" : {"$regex" : ".*(?i)" + name + ".*"}, 
                 'category': {'$regex': '(?i)' + category}, 

@@ -22,13 +22,11 @@ def index():
         issue_date = request.form.get('issue_date')
         return_date = request.form.get('return_date')
 
-        book_id = db.books.find_one({"name": {"$regex" : "(?i)" + book_name}}, {"_id": 1})
-        book_rent = db.books.find_one({"name": {"$regex" : "(?i)" + book_name}}, {"rent_per_day": 1})
-
+        book = db.books.find_one({"name": {"$regex" : "(?i)" + book_name}})
 
         if issue_date is not None and return_date is None:
             db.transactions.insert_one({
-                "book_id": book_id["_id"],
+                "book_id": book["_id"],
                 "person": person_name,
                 "issue_date" : datetime.fromisoformat(issue_date[:-1])
             })
@@ -39,7 +37,7 @@ def index():
 
         elif issue_date is None and return_date is not None:
             db.transactions.update_one({
-                "book_id": book_id["_id"],
+                "book_id": book["_id"],
                 "person": {'$regex': '(?i)' + person_name},
                 'issue_date': {'$type': 9},
                 "return_date" : {'$exists': False}
@@ -50,8 +48,8 @@ def index():
                 }
             })
 
-            issue_date = db.transactions.find_one({"book_id": book_id["_id"]}, {"issue_date": 1})
-            rent = book_rent["rent_per_day"] * (datetime.fromisoformat(return_date[:-1]) - issue_date['issue_date']).days
+            issue_date = db.transactions.find_one({"book_id": book["_id"]}, {"issue_date": 1})
+            rent = book["rent_per_day"] * (datetime.fromisoformat(return_date[:-1]) - issue_date['issue_date']).days
             
             return jsonify({
                 "message": "Book returned successfully",
@@ -70,15 +68,13 @@ def index():
 
         if book_name is not None:
             book = db.books.find_one({"name": {"$regex" : "(?i)" + book_name}})
+
             transactions = db.transactions.find({"book_id": book['_id'], "issue_date": {"$type": 9}}, {"_id": 0})
             transactions_active = db.transactions.find({"book_id": book['_id'], "issue_date": {"$type": 9}, 'return_date': {'$exists': False}}, {"_id": 0})
             transactions_completed = db.transactions.find({"book_id": book['_id'], "issue_date": {"$type": 9}, 'return_date': {'$type': 9}}, {"_id": 0})
 
-            print(transactions_active)
-
             renters = [transaction['person'] for transaction in transactions]
             active_renters = [transaction['person'] for transaction in transactions_active]
-            print(active_renters)
 
             total_collected = 0
             for transaction in transactions_completed:
@@ -102,6 +98,7 @@ def index():
                 }
             }, 
             {"_id": 0})
+            
         elif from_date is not None and to_date is not None:
             transactions = db.transactions.aggregate([
                 {'$match': {
